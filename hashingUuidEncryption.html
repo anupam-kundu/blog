@@ -128,12 +128,69 @@ print(uuid.uuid4())  # e.g., 550e8400-e29b-41d4-a716-446655440000</code></pre>
       </tr>
     </tbody>
   </table>
-  <h2>📦 When to Use What? Real-World Scenarios</h2>
-  <ul>
-    <li><strong>Use Hashing</strong> when you need to verify data integrity (e.g., checksums, password storage with bcrypt).</li>
-    <li><strong>Use UUIDs</strong> to generate unique IDs in distributed systems (e.g., user IDs, correlation IDs in microservices).</li>
-    <li><strong>Use Encryption</strong> when sensitive data must be protected during storage or transmission (e.g., PII, API tokens).</li>
-  </ul>
+  
+<h3>🔐 Real-World Use</h3>
+<ul>
+  <li>HTTPS uses TLS encryption</li>
+  <li>Encrypting databases or backup files</li>
+  <li>Email encryption using PGP</li>
+</ul>
+
+<h2>✅ Use Cases</h2>
+
+<h3>🔁 Hashing</h3>
+<ul>
+  <li>Data integrity (checksums, Git commit IDs)</li>
+  <li>Password hashing (bcrypt, Argon2)</li>
+  <li>Cache keys</li>
+  <li>Digital signatures</li>
+</ul>
+
+<h3>🔗 UUIDs</h3>
+<ul>
+  <li>Unique IDs for database records (especially in distributed systems)</li>
+  <li>Resource identifiers in APIs</li>
+  <li>Session tokens</li>
+  <li>Correlation IDs in logs and tracing</li>
+</ul>
+
+<h3>🔐 Encryption</h3>
+<ul>
+  <li>Storing sensitive data (e.g. SSNs, tokens)</li>
+  <li>Secure file transfer (SFTP, HTTPS)</li>
+  <li>Email encryption (PGP/S-MIME)</li>
+  <li>Encrypting mobile device storage</li>
+</ul>
+
+<h2>📦 When to Use What? Real-World Scenarios</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Scenario</th>
+      <th>Use This</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Ensure data integrity</td><td>Hash</td></tr>
+    <tr><td>Store password securely</td><td>Hash (with salt + bcrypt/Argon2)</td></tr>
+    <tr><td>Generate API or session tokens</td><td>UUID or SecureRandom ID</td></tr>
+    <tr><td>Unique keys in distributed systems</td><td>UUID v4</td></tr>
+    <tr><td>Fingerprint large files or texts</td><td>Hash (SHA-256)</td></tr>
+    <tr><td>Deterministic ID from known input</td><td>UUID v5 or Hash</td></tr>
+    <tr><td>Secure communication over network</td><td>Encryption (TLS/HTTPS)</td></tr>
+    <tr><td>Store sensitive user data (e.g., SSNs)</td><td>Encryption (AES, RSA)</td></tr>
+    <tr><td>Protect files or backups at rest</td><td>Encryption (disk/file encryption)</td></tr>
+    <tr><td>Send confidential emails or documents</td><td>Encryption (PGP, S/MIME)</td></tr>
+  </tbody>
+</table>
+
+<h2>🎯 Summary</h2>
+<ul>
+  <li><strong>Hash</strong> = One-way transformation (integrity, fingerprinting)</li>
+  <li><strong>UUID</strong> = Unique identifiers (not sensitive)</li>
+  <li><strong>Encryption</strong> = Two-way transformation (confidentiality)</li>
+</ul>
   <h2>👨‍💻 Python Code Examples</h2>
   <pre><code>import hashlib
 import uuid
