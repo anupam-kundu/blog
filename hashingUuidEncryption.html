@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hashing, UUIDs, and Encryption: What's the Difference?</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; margin: 20px; max-width: 900px; }
+    h1, h2, h3 { color: #333366; }
+    pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    code { font-family: monospace; color: #c7254e; background-color: #f9f2f4; padding: 2px 4px; border-radius: 4px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    img { max-width: 100%; height: auto; margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <h1>Hashing, UUIDs, and Encryption: What's the Difference?</h1>
+  <p>In software development, it's common to encounter <strong>hash functions</strong>, <strong>UUIDs</strong>, and <strong>encryption</strong>. While they may seem similar—especially in their output—they serve very different purposes. This blog will help you understand what each does, how they differ, and when to use them.</p>
+
+  <h2>🔐 What is a Hash Function?</h2>
+  <p>A hash function takes an input (any data) and produces a fixed-size string, known as a <em>digest</em>. It's a one-way function, meaning you can't get the original input back from the hash.</p>
+  <p><strong>Example (SHA-256 of "hello"):</strong></p>
+  <pre><code>2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824</code></pre>
+  <p><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/SHA-2.svg/800px-SHA-2.svg.png" alt="Hashing diagram"></p>
+
+  <h3>✅ Common Uses of Hashing</h3>
+  <ul>
+    <li>Checking data integrity</li>
+    <li>Password storage (with salt and a strong algorithm like bcrypt)</li>
+    <li>Fingerprinting large files</li>
+    <li>Caching</li>
+  </ul>
+
+  <h2>🆔 What is a UUID?</h2>
+  <p>A UUID (Universally Unique Identifier) is a 128-bit value designed to be globally unique. It’s used primarily for creating unique IDs across distributed systems without coordination.</p>
+  <p><strong>Example (UUID v4):</strong></p>
+  <pre><code>550e8400-e29b-41d4-a716-446655440000</code></pre>
+
+  <h3>✅ Common Uses of UUIDs</h3>
+  <ul>
+    <li>Unique identifiers for database records</li>
+    <li>API keys or tokens</li>
+    <li>Log correlation IDs</li>
+    <li>Primary keys in distributed databases</li>
+  </ul>
+
+  <h2>🔒 What is Encryption?</h2>
+  <p>Encryption is a two-way process where data is transformed into a format that is unreadable without a <strong>key</strong>. Unlike hashing, encryption is reversible—provided you have the correct key.</p>
+  <p><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Symmetric_Encryption.svg/800px-Symmetric_Encryption.svg.png" alt="Encryption diagram"></p>
+
+  <h3>✅ Common Uses of Encryption</h3>
+  <ul>
+    <li>Protecting data in transit (TLS, HTTPS)</li>
+    <li>Securing data at rest (database encryption)</li>
+    <li>End-to-end communication (e.g., Signal, WhatsApp)</li>
+  </ul>
+
+  <h2>⚖️ Comparison Table</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>Hash Function</th>
+        <th>UUID</th>
+        <th>Encryption</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Reversible?</td>
+        <td>No</td>
+        <td>No</td>
+        <td>Yes</td>
+      </tr>
+      <tr>
+        <td>Purpose</td>
+        <td>Data integrity, fingerprints</td>
+        <td>Unique identifiers</td>
+        <td>Confidentiality</td>
+      </tr>
+      <tr>
+        <td>Output Size</td>
+        <td>Varies (e.g., 256 bits for SHA-256)</td>
+        <td>128 bits</td>
+        <td>Same size as input (plus metadata)</td>
+      </tr>
+      <tr>
+        <td>Deterministic?</td>
+        <td>Yes</td>
+        <td>UUIDv5: Yes, UUIDv4: No</td>
+        <td>No (if using random IVs)</td>
+      </tr>
+      <tr>
+        <td>Security</td>
+        <td>Collision-resistant (SHA-2, SHA-3)</td>
+        <td>Statistically unique</td>
+        <td>Relies on key secrecy</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>👨‍💻 Code Examples (Python)</h2>
+  <pre><code>import hashlib
+import uuid
+from cryptography.fernet import Fernet
+
+# Hashing
+print(hashlib.sha256(b"hello").hexdigest())
+
+# UUID
+print(uuid.uuid4())
+
+# Encryption
+key = Fernet.generate_key()
+cipher = Fernet(key)
+token = cipher.encrypt(b"hello")
+print(token)
+print(cipher.decrypt(token))</code></pre>
+
+  <h2>🎯 Conclusion</h2>
+  <p><strong>Hashing</strong> is best for integrity and secure comparisons. <strong>UUIDs</strong> are great for generating unique IDs across systems. <strong>Encryption</strong> ensures that sensitive data remains private. Know the difference, and use each for what it's designed to do!</p>
+
+</body>
+</html>
