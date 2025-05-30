@@ -128,7 +128,12 @@ print(uuid.uuid4())  # e.g., 550e8400-e29b-41d4-a716-446655440000</code></pre>
       </tr>
     </tbody>
   </table>
-
+  <h2>📦 When to Use What? Real-World Scenarios</h2>
+  <ul>
+    <li><strong>Use Hashing</strong> when you need to verify data integrity (e.g., checksums, password storage with bcrypt).</li>
+    <li><strong>Use UUIDs</strong> to generate unique IDs in distributed systems (e.g., user IDs, correlation IDs in microservices).</li>
+    <li><strong>Use Encryption</strong> when sensitive data must be protected during storage or transmission (e.g., PII, API tokens).</li>
+  </ul>
   <h2>👨‍💻 Python Code Examples</h2>
   <pre><code>import hashlib
 import uuid
