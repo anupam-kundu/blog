@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Consistent Hashing Visualization</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      text-align: center;
+    }
+    
+    .main-grid {
+      display: grid;
+      grid-template-columns: 50% 50%;
+      height: 100vh;
+    }
+
+    .left-panel {
+      border-right: 1px solid #ccc;
+      padding: 10px;
+      overflow-y: auto;
+    }
+
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .top-right, .bottom-right {
+      height: 50%;
+      padding: 10px;
+      overflow-y: auto;
+      border-bottom: 1px solid #ccc;
+    }
+
+    svg {
+      display: block;
+      margin: 10px auto;
+    }
+    .node {
+      stroke: #000;
+      stroke-width: 1.5px;
+    }
+    .key {
+      fill: orange;
+      stroke: black;
+      stroke-width: 2px;
+    }
+    .label {
+      font-size: 14px;
+      text-anchor: middle;
+    }
+    .info {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    table {
+      margin: 20px auto;
+      border-collapse: collapse;
+      width: 60%;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+    button {
+      margin: 5px;
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Consistent Hashing with Virtual Nodes</h2>
+
+  <div class="main-grid">
+    <!-- Left Half: Panel 1 -->
+    <div class="left-panel" id="panel1">
+      <h3>Animating key-to-node mapping...</h3>
+      <svg width="700" height="700"></svg>
+      <button onclick="addNode()">➕ Add Node</button>
+      <button onclick="removeNode()">➖ Remove Node</button>
+      <div class="info" id="info">Animating key-to-node mapping...</div>
+    </div>
+
+    <!-- Right Half: Top + Bottom -->
+    <div class="right-panel">
+      <div class="top-right" id="panel2">
+      <!-- Panel 2: Top Right -->
+      <h3>Key Allocation Table</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Hash (°)</th>
+            <th>Mapped VNode</th>
+            <th>Physical Node</th>
+          </tr>
+        </thead>
+        <tbody id="key-table-body"></tbody>
+      </table>
+      </div>
+
+      <!-- Panel 3: Bottom Right -->
+      <div class="bottom-right" id="panel3">
+        <h3>Physical Node Load</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Physical Node</th>
+              <th>Number of Keys</th>
+            </tr>
+          </thead>
+          <tbody id="load-table-body"></tbody>
+        </table>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const svg = d3.select("svg");
+    const width = +svg.attr("width");
+    const height = +svg.attr("height");
+    const radius = 280;
+    const center = { x: width / 2, y: height / 2 };
+    const vnodePerNode = 3;
+    const totalVnode = 25;
+    let physicalNodes = ['A', 'B', 'C', 'D'];
+    let vnodes = [];
+    let vnodeCount = 0;
+    let vnodeKeyCounts = {};
+    let keyMap = {};
+    let nodeLoadMap = {};
+    const keys = ["user123", "item567", "order42", "cart999", "profile88", "event77", "token45", "log321", "search001", "flag888"];
+    const nodeColors = d3.schemeCategory10;
+    let currentKeyIndex = 0;
+
+    function assignColor(owner) {
+      return nodeColors[physicalNodes.indexOf(owner) % nodeColors.length];
+    }
+
+    function resetRing() {
+      svg.selectAll("*").remove();
+      drawRing();
+      drawVNodes();
+      drawKeys();
+    }
+
+    function drawRing() {
+      svg.append("circle")
+        .attr("cx", center.x)
+        .attr("cy", center.y)
+        .attr("r", radius)
+        .attr("fill", "none")
+        .attr("stroke", "#aaa");
+    }
+
+    function drawVNodes() {
+      vnodes.forEach((vnode, i) => {
+        vnode.angle = (2 * Math.PI / vnodes.length) * i;
+        vnode.x = center.x + radius * Math.cos(vnode.angle);
+        vnode.y = center.y + radius * Math.sin(vnode.angle);
+      });
+
+      svg.selectAll(".vnode")
+        .data(vnodes)
+        .enter()
+        .append("circle")
+        .attr("class", "node")
+        .attr("r", 15)
+        .attr("cx", d => d.x)
+        .attr("cy", d => d.y)
+        .attr("fill", d => assignColor(d.owner));
+
+      svg.selectAll(".vlabel")
+        .data(vnodes)
+        .enter()
+        .append("text")
+        .attr("class", "label")
+        .attr("x", d => d.x)
+        .attr("y", d => d.y - 20)
+        .text(d => `${d.id} (${d.owner})`);
+    }
+
+    function hashKeyToAngle(key) {
+      const hash = d3.sum(key.split("").map(c => c.charCodeAt(0))) % 360;
+      return {
+        angle: hash * (2 * Math.PI / 360),
+        hash: hash
+      };
+    }
+
+    function getTargetVNode(angle) {
+      const sorted = vnodes.slice().sort((a, b) => a.angle - b.angle);
+      for (const vnode of sorted) {
+        if (angle <= vnode.angle) return vnode;
+      }
+      return sorted[0];
+    }
+
+    function updateKeyTable(key, hash, vnodeId, owner) {
+      const tbody = document.getElementById("key-table-body");
+      const row = document.createElement("tr");
+      row.innerHTML = `<td>${key}</td><td>${hash}°</td><td>${vnodeId}</td><td>${owner}</td>`;
+      tbody.appendChild(row);
+    }
+
+    function updateLoadTable() {
+      const loadBody = document.getElementById("load-table-body");
+      loadBody.innerHTML = "";
+      physicalNodes.forEach(node => {
+        const count = nodeLoadMap[node] || 0;
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${node}</td><td>${count}</td>`;
+        loadBody.appendChild(row);
+      });
+    }
+
+    function drawKeys() {
+      if (currentKeyIndex >= keys.length) return;
+
+      const key = keys[currentKeyIndex++];
+      const { angle, hash } = hashKeyToAngle(key);
+      const vnode = getTargetVNode(angle);
+
+      if (!vnodeKeyCounts[vnode.id]) vnodeKeyCounts[vnode.id] = 0;
+      const offset = - (25 + vnodeKeyCounts[vnode.id] * 22);
+
+      const x = vnode.x + offset * Math.cos(vnode.angle);
+      const y = vnode.y + offset * Math.sin(vnode.angle);
+
+      svg.append("circle")
+        .attr("class", "key")
+        .attr("r", 10)
+        .attr("cx", center.x)
+        .attr("cy", center.y)
+        .transition().duration(1500)
+        .attr("cx", x)
+        .attr("cy", y);
+
+      svg.append("text")
+        .attr("class", "label")
+        .attr("x", center.x)
+        .attr("y", center.y)
+        .text(key)
+        .transition().duration(1500)
+        .attr("x", x)
+        .attr("y", y + 18);
+
+      d3.select("#info").text(`Key '${key}' → hash=${hash}° → ${vnode.id} (${vnode.owner})`);
+
+      updateKeyTable(key, hash, vnode.id, vnode.owner);
+      keyMap[key] = vnode.id;
+      vnodeKeyCounts[vnode.id]++;
+      nodeLoadMap[vnode.owner] = (nodeLoadMap[vnode.owner] || 0) + 1;
+      updateLoadTable();
+
+      setTimeout(drawKeys, 2000);
+    }
+
+    const getRandomElement = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const getNextElement = (arr, index) => arr[index % arr.length];
+
+    function reallocateVnodes() {
+      vnodes = [];
+      for (let i = 0; i < totalVnode; i++) {
+        vnodes.push({ id: `VNode${i}`, owner: getNextElement(physicalNodes, i) });
+      }
+    }
+
+    function initialize() {
+      vnodes = [];
+      vnodeKeyCounts = {};
+      nodeLoadMap = {};
+      keyMap = {};
+      vnodeCount = 0;
+      currentKeyIndex = 0;
+      // physicalNodes.forEach(node => {
+      //   for (let i = 0; i < vnodePerNode; i++) {
+      //     vnodes.push({ id: `VNode${vnodeCount++}`, owner: node });
+      //   }
+      // });
+      reallocateVnodes();
+      resetRing();
+    }
+
+    function addNode() {
+      const newNode = String.fromCharCode(65 + physicalNodes.length);
+      physicalNodes.push(newNode);
+
+      // for (let i = 0; i < vnodePerNode; i++) {
+      //   vnodes.push({ id: `VNode${vnodeCount++}`, owner: newNode });
+      // }
+      
+      reallocateVnodes();
+
+      vnodeKeyCounts = {};
+      nodeLoadMap = {};
+      document.getElementById("key-table-body").innerHTML = "";
+      document.getElementById("load-table-body").innerHTML = "";
+      currentKeyIndex = 0;
+      resetRing();
+      drawKeys();
+      d3.select("#info").text(`🆕 Node ${newNode} added. Keys being reassigned...`);
+    }
+
+    function removeNode() {
+      if (physicalNodes.length <= 1) {
+        alert("At least one node must remain!");
+        return;
+      }
+
+      const removed = physicalNodes.pop();
+      reallocateVnodes();
+      vnodeKeyCounts = {};
+      nodeLoadMap = {};
+      document.getElementById("key-table-body").innerHTML = "";
+      document.getElementById("load-table-body").innerHTML = "";
+      currentKeyIndex = 0;
+      resetRing();
+      drawKeys();
+      d3.select("#info").text(`🗑️ Node ${removed} removed. Reassigning keys...`);
+    }
+
+    initialize();
+    drawKeys();
+  </script>
+</body>
+</html>
