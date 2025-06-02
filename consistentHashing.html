@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Scalable Systems: Consistent Hashing + Virtual Nodes</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f9f9f9;
+      color: #333;
+      margin: 2rem auto;
+      max-width: 800px;
+      padding: 20px;
+      line-height: 1.7;
+    }
+
+    h1, h2 {
+      color: #0a66c2;
+    }
+
+    code {
+      background: #eee;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    pre {
+      background: #eee;
+      padding: 1em;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+
+    img {
+      max-width: 100%;
+      margin: 1em 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1em 0;
+    }
+
+    table, th, td {
+      border: 1px solid #ccc;
+    }
+
+    th, td {
+      padding: 10px;
+      text-align: left;
+    }
+
+    .note {
+      background: #e8f0fe;
+      padding: 10px;
+      border-left: 4px solid #0a66c2;
+      margin: 1em 0;
+    }
+
+    svg {
+      margin-top: 40px;
+    }
+    .node {
+      fill: #87ceeb;
+      stroke: #000;
+      stroke-width: 1.5px;
+    }
+    .key {
+      fill: orange;
+      stroke: black;
+      stroke-width: 2px;
+    }
+    .label {
+      font-size: 14px;
+      text-anchor: middle;
+    }
+    .info {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Scalable Systems with Consistent Hashing + Virtual Nodes</h1>
+
+  <p>Distributed systems need to scale dynamically. But how can we do that <strong>without reshuffling all our data</strong> every time a server joins or fails?</p>
+
+  <h2>💡 The Answer: Consistent Hashing</h2>
+
+  <p>Consistent Hashing is a clever algorithm that maps both data keys and servers to a circular hash space (e.g. <code>0 to 2³²</code>) — called a <strong>hash ring</strong>.</p>
+
+  <p>Each key is assigned to the <strong>first node clockwise</strong> on the ring. When a node is added or removed, only a fraction of keys get remapped — this minimizes disruption.</p>
+
+  <h2>🔄 Why Use <em>Virtual Nodes</em>?</h2>
+
+  <ul>
+    <li>✔️ Prevent uneven load distribution when nodes have different capacities.</li>
+    <li>✔️ Improve balancing by assigning multiple <em>virtual nodes</em> per physical node.</li>
+    <li>✔️ Make adding/removing servers much smoother.</li>
+  </ul>
+
+  <div class="note">
+    <strong>Virtual nodes</strong> are additional "slots" on the ring that each physical node controls. This spreads responsibility more evenly across the hash ring.
+  </div>
+
+  <h2>🖼️ Visual Diagram</h2>
+  <h2>Consistent Hashing with Virtual Nodes</h2>
+  <svg width="600" height="600"></svg>
+  <div class="info" id="info">Animating key-to-node mapping...</div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Key</th>
+        <th>Mapped VNode</th>
+        <th>Physical Node</th>
+      </tr>
+    </thead>
+    <tbody id="key-table-body"></tbody>
+  </table>
+
+  <script>
+    const svg = d3.select("svg");
+    const width = +svg.attr("width");
+    const height = +svg.attr("height");
+    const radius = 250;
+    const center = { x: width / 2, y: height / 2 };
+
+    const vnodeCount = 12;
+    let vnodes = [];
+    const physicalNodes = ['A', 'B', 'C', 'D'];
+
+    for (let i = 0; i < vnodeCount; i++) {
+      const angle = (2 * Math.PI / vnodeCount) * i;
+      const x = center.x + radius * Math.cos(angle);
+      const y = center.y + radius * Math.sin(angle);
+      vnodes.push({
+        id: `VNode${i}`,
+        angle: angle,
+        x: x,
+        y: y,
+        owner: physicalNodes[i % physicalNodes.length]
+      });
+    }
+
+    svg.append("circle")
+      .attr("cx", center.x)
+      .attr("cy", center.y)
+      .attr("r", radius)
+      .attr("fill", "none")
+      .attr("stroke", "#aaa");
+
+    svg.selectAll(".vnode")
+      .data(vnodes)
+      .enter()
+      .append("circle")
+      .attr("class", "node")
+      .attr("r", 15)
+      .attr("cx", d => d.x)
+      .attr("cy", d => d.y);
+
+    svg.selectAll(".vlabel")
+      .data(vnodes)
+      .enter()
+      .append("text")
+      .attr("class", "label")
+      .attr("x", d => d.x)
+      .attr("y", d => d.y - 20)
+      .text(d => `${d.id} (${d.owner})`);
+
+    const keys = ["user123", "item567", "order42", "cart999", "profile88", "event77", "token45", "log321", "search001", "flag888"];
+    let currentKeyIndex = 0;
+
+    function hashKeyToRing(key) {
+      const hash = d3.sum(key.split("").map(c => c.charCodeAt(0))) % 360;
+      return hash * (2 * Math.PI / 360);
+    }
+
+    function getTargetVNode(angle) {
+      const sorted = vnodes.slice().sort((a, b) => a.angle - b.angle);
+      for (const vnode of sorted) {
+        if (angle <= vnode.angle) return vnode;
+      }
+      return sorted[0]; // wrap around
+    }
+
+    function updateTable(key, vnodeId, owner) {
+      const tbody = document.getElementById("key-table-body");
+      const row = document.createElement("tr");
+      row.innerHTML = `<td>${key}</td><td>${vnodeId}</td><td>${owner}</td>`;
+      tbody.prepend(row);
+      if (tbody.rows.length > 10) tbody.deleteRow(tbody.rows.length - 1);
+    }
+
+    function animateNextKey() {
+      const key = keys[currentKeyIndex];
+      currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+
+      const angle = hashKeyToRing(key);
+      const x = center.x + (radius - 30) * Math.cos(angle);
+      const y = center.y + (radius - 30) * Math.sin(angle);
+
+      const vnode = getTargetVNode(angle);
+
+      svg.append("circle")
+        .attr("class", "key")
+        .attr("r", 10)
+        .attr("cx", center.x)
+        .attr("cy", center.y)
+        .transition()
+        .duration(700)
+        .attr("cx", x)
+        .attr("cy", y)
+        .on("end", () => {
+          d3.select("#info").text(`Key '${key}' → ${vnode.id} (Node ${vnode.owner})`);
+          updateTable(key, vnode.id, vnode.owner);
+          d3.selectAll(".key").transition().delay(500).duration(300).style("opacity", 0).remove();
+        });
+    }
+
+    setInterval(animateNextKey, 1000);
+  </script>
+
+  <h2>📦 Databases That Use Consistent Hashing</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Database</th>
+        <th>Usage</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Amazon DynamoDB</td>
+        <td>Partition and replicate keys</td>
+      </tr>
+      <tr>
+        <td>Apache Cassandra</td>
+        <td>Token ring with virtual nodes</td>
+      </tr>
+      <tr>
+        <td>ScyllaDB</td>
+        <td>Highly efficient sharding</td>
+      </tr>
+      <tr>
+        <td>Riak</td>
+        <td>Ring-based distribution of key-value data</td>
+      </tr>
+      <tr>
+        <td>Couchbase</td>
+        <td>vBuckets (virtual partitions) map to nodes</td>
+      </tr>
+      <tr>
+        <td>TiKV (used by TiDB)</td>
+        <td>Range-based partitioning and load balancing</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>🔁 Summary</h2>
+  <p>
+    <strong>Consistent Hashing + Virtual Nodes</strong> = highly scalable, fault-tolerant, and efficient data distribution.
+  </p>
+
+  <p>
+    It's a foundational pattern in distributed databases and caching systems — simple in concept, powerful in practice.
+  </p>
+
+  <p><strong>#SystemDesign #DistributedSystems #ConsistentHashing #Databases #Scalability #VirtualNodes #Cassandra #DynamoDB #SoftwareArchitecture</strong></p>
+</body>
+</html>
