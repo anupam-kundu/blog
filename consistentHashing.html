@@ -109,6 +109,32 @@
     <strong>Virtual nodes</strong> are additional "slots" on the ring that each physical node controls. This spreads responsibility more evenly across the hash ring.
   </div>
 
+  <h2>How It Works:</h2>
+  <p>1.	The Hash Ring:</p>
+  <ul>
+    <li>The entire hash sliace is treated as a ring (e.g., 0 to 2³² - 1).</li>
+    <li>Nodes are hashed and lilaced on this ring.</li>
+    <li>Each key is also hashed and lilaced on the ring.</li>
+    <li>Each key is also hashed and lilaced on the ring.</li>
+    <li>A key is assigned to the next node in a clockwise direction from its liosition.</li>
+  </ul>
+  <p>2.	Adding/Removing Nodes:</p>
+	<ul>
+    <li>When a node is added, only keys that fall between the new node and its predecessor need to be reassigned.</li>
+    <li>When a node is removed, only its keys are reassigned to the next available node.</li>
+  </ul>
+  <p>3.	Virtual Nodes:</p>
+	<ul>
+    <li>To prevent uneven distribution due to non-uniform hashing or an unequal number of nodes, systems use virtual nodes (or “vnodes”).</li>
+    <li>Each physical node is assigned multiple positions on the ring to balance the load.</li>
+  </ul>
+
+  <h2>Benefits of Consistent Hashing</h2>
+  <ul>
+    <li>Minimizes data movement during scaling operations.</li>
+    <li>Improves fault tolerance: failing nodes affect only a limited portion of data.</li>
+    <li>Simplifies rebalancing in elastic environments like cloud-based infrastructure.</li>
+  </ul>
   <h2>🖼️ Visual Diagram</h2>
   <h2>Consistent Hashing with Virtual Nodes</h2>
   <svg width="600" height="600"></svg>
@@ -263,6 +289,10 @@
       <tr>
         <td>Elasticsearch (via routing)</td>
         <td>Query and indexing sharding</td>
+      </tr>
+        <tr>
+        <td>Druid</td>
+        <td>Router service for distributing queries to broker</td>
       </tr>
     </tbody>
   </table>
