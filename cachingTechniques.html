@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cache Write Techniques and Pitfalls</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f9f9f9; line-height: 1.6; }
+    h1, h2, h3 { color: #333; }
+    .section { margin-bottom: 40px; }
+    .diagram-container { text-align: center; margin-top: 30px; }
+    canvas { border: 1px solid #ccc; background: #fff; }
+    .box { border: 1px solid #ccc; padding: 15px; background: #fff; border-radius: 6px; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Cache Write Techniques and Pitfalls</h1>
+
+  <div class="section">
+    <h2>✅ Common Cache Write Techniques</h2>
+
+    <div class="box">
+      <h3>1. Write-Through Cache</h3>
+      <p><strong>How it works:</strong> Writes go to both cache and the backing store (DB).</p>
+      <ul>
+        <li>✅ Strong consistency between cache and DB.</li>
+        <li>❌ Write latency equals DB write latency.</li>
+      </ul>
+    </div>
+
+    <div class="box">
+      <h3>2. Write-Around Cache</h3>
+      <p><strong>How it works:</strong> Writes go only to the DB. The cache is updated only on subsequent reads.</p>
+      <ul>
+        <li>✅ Reduces write load on cache.</li>
+        <li>❌ First read after a write will be a cache miss.</li>
+      </ul>
+    </div>
+
+    <div class="box">
+      <h3>3. Write-Back (Write-Behind) Cache</h3>
+      <p><strong>How it works:</strong> Writes go to the cache and are asynchronously written to the DB.</p>
+      <ul>
+        <li>✅ Low-latency writes with high throughput.</li>
+        <li>❌ Risk of data loss if cache fails before flushing.</li>
+      </ul>
+    </div>
+
+    <div class="box">
+      <h3>4. Read/Write Through Hybrid</h3>
+      <p><strong>How it works:</strong> Read-through for cache misses, write-through for updates, optionally write-around for specific cases.</p>
+      <ul>
+        <li>✅ Balances consistency and performance.</li>
+        <li>❌ More complex orchestration.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>⚠️ Common Pitfalls in Cache Write Design</h2>
+    <ul>
+      <li><strong>Stale or Inconsistent Data:</strong> Improper invalidation or delayed async writes.</li>
+      <li><strong>Lost Writes:</strong> Crashed write-back cache before flushing to DB.</li>
+      <li><strong>Race Conditions:</strong> Concurrent operations updating DB and cache out of order.</li>
+      <li><strong>Thundering Herd / Cache Stampede:</strong> Multiple concurrent cache misses cause a burst to the DB.</li>
+      <li><strong>Cache Eviction and TTL Issues:</strong> TTL too short → frequent misses; too long → stale data.</li>
+      <li><strong>High Latency from Synchronous Writes:</strong> Seen in write-through if DB is slow.</li>
+      <li><strong>Inadequate Monitoring and Metrics:</strong> Not measuring hit ratio, cache latency, or write failures.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>📌 Best Practices</h2>
+    <ul>
+      <li>Prefer <strong>write-through</strong> for consistency-critical data.</li>
+      <li>Use <strong>write-around</strong> for rarely-read but frequently-updated data.</li>
+      <li>Use <strong>write-back</strong> with caution: add durability guarantees.</li>
+      <li>Invalidate or update cache <strong>atomically</strong> with DB if possible.</li>
+      <li>Log cache failures and monitor <strong>write error rates</strong>.</li>
+      <li>Test failover behavior and <strong>persistence loss scenarios</strong>.</li>
+    </ul>
+  </div>
+
+  <div class="section diagram-container">
+    <h2>🎨 Animated Diagrams of Cache Write Techniques</h2>
+    <canvas id="diagram" width="700" height="300"></canvas>
+    <script>
+      const canvas = document.getElementById("diagram");
+      const ctx = canvas.getContext("2d");
+
+      function drawBase() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#333";
+        ctx.font = "16px Arial";
+        ctx.fillText("Client", 50, 50);
+        ctx.fillText("Cache", 300, 50);
+        ctx.fillText("Database", 550, 50);
+      }
+
+      function drawArrow(fromX, fromY, toX, toY, label) {
+        ctx.beginPath();
+        ctx.moveTo(fromX, fromY);
+        ctx.lineTo(toX, toY);
+        ctx.strokeStyle = "#2a9d8f";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = "#000";
+        ctx.fillText(label, (fromX + toX) / 2 - 20, (fromY + toY) / 2 - 10);
+      }
+
+      async function animateWriteTechniques() {
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        // Write-Through
+        drawBase();
+        drawArrow(70, 80, 320, 80, "Write to Cache");
+        drawArrow(70, 120, 570, 120, "Write to DB");
+        ctx.fillText("Write-Through", 280, 260);
+        await sleep(5000);
+
+        // Write-Around
+        drawBase();
+        drawArrow(70, 100, 570, 100, "Write to DB only");
+        ctx.fillText("Write-Around", 280, 260);
+        await sleep(5000);
+
+        // Write-Back
+        drawBase();
+        drawArrow(70, 80, 320, 80, "Write to Cache");
+        drawArrow(320, 120, 570, 120, "Async Flush to DB");
+        ctx.fillText("Write-Back", 280, 260);
+        await sleep(5000);
+
+        // Hybrid
+        drawBase();
+        drawArrow(70, 80, 320, 80, "Write to Cache");
+        drawArrow(70, 120, 570, 120, "Write to DB");
+        ctx.fillText("Hybrid: Write-Through + Read-Through", 180, 260);
+        await sleep(5000);
+
+        animateWriteTechniques();
+      }
+
+      animateWriteTechniques();
+    </script>
+  </div>
+</body>
+</html>
