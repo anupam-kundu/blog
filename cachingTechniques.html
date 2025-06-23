@@ -22,33 +22,43 @@
     <div class="box">
       <h3>1. Write-Through Cache</h3>
       <p><strong>How it works:</strong> Writes go to both cache and the backing store (DB).</p>
+      <p><strong>Use case:</strong> Ensures cache and DB are always in sync. Used when data consistency is more important than write speed.</p>
       <ul>
         <li>✅ Strong consistency between cache and DB.</li>
+        <li>✅ Simplified read logic.</li>
         <li>❌ Write latency equals DB write latency.</li>
+        <li>❌ Cache is in the critical write path.</li>
       </ul>
     </div>
 
     <div class="box">
       <h3>2. Write-Around Cache</h3>
       <p><strong>How it works:</strong> Writes go only to the DB. The cache is updated only on subsequent reads.</p>
+      <p><strong>Use case:</strong> Avoids polluting cache with infrequently read data.</p>
       <ul>
         <li>✅ Reduces write load on cache.</li>
+        <li>✅ Ideal for write-heavy, read-rare data.</li>
         <li>❌ First read after a write will be a cache miss.</li>
+        <li>❌ Stale data risk if not properly invalidated.</li>
       </ul>
     </div>
 
     <div class="box">
       <h3>3. Write-Back (Write-Behind) Cache</h3>
       <p><strong>How it works:</strong> Writes go to the cache and are asynchronously written to the DB.</p>
+      <p><strong>Use case:</strong> Low latency writes with high throughput.</p>
       <ul>
-        <li>✅ Low-latency writes with high throughput.</li>
+        <li>✅ Fast writes.</li>
+        <li>✅ Batching possible, reducing DB load.</li>
         <li>❌ Risk of data loss if cache fails before flushing.</li>
+        <li>❌ More complex to manage (e.g., retries, failure recovery).</li>
       </ul>
     </div>
 
     <div class="box">
       <h3>4. Read/Write Through Hybrid</h3>
       <p><strong>How it works:</strong> Read-through for cache misses, write-through for updates, optionally write-around for specific cases.</p>
+      <p><strong>Use case:</strong> Tuned per endpoint or key based on access patterns.</p>
       <ul>
         <li>✅ Balances consistency and performance.</li>
         <li>❌ More complex orchestration.</li>
@@ -58,14 +68,40 @@
 
   <div class="section">
     <h2>⚠️ Common Pitfalls in Cache Write Design</h2>
+    <p><strong>1. Stale or Inconsistent Data:</strong></p>
     <ul>
-      <li><strong>Stale or Inconsistent Data:</strong> Improper invalidation or delayed async writes.</li>
-      <li><strong>Lost Writes:</strong> Crashed write-back cache before flushing to DB.</li>
-      <li><strong>Race Conditions:</strong> Concurrent operations updating DB and cache out of order.</li>
-      <li><strong>Thundering Herd / Cache Stampede:</strong> Multiple concurrent cache misses cause a burst to the DB.</li>
-      <li><strong>Cache Eviction and TTL Issues:</strong> TTL too short → frequent misses; too long → stale data.</li>
-      <li><strong>High Latency from Synchronous Writes:</strong> Seen in write-through if DB is slow.</li>
-      <li><strong>Inadequate Monitoring and Metrics:</strong> Not measuring hit ratio, cache latency, or write failures.</li>
+      <li>Cause: Improper invalidation or delayed async writes.</li>
+      <li>Example: Updating DB but not cache → stale cache entry.</li>
+    </ul>
+    <p><strong>2. Lost Writes:</strong></p>
+    <ul>
+      <li>Cause: Crashed write-back cache before flushing to DB.</li>
+      <li>Solution: Use durable cache, write-ahead logging, or transactional support.</li>
+    </ul>
+    <p><strong>3. Race Conditions:</strong></p>
+    <ul>
+      <li>Cause: Concurrent operations updating DB and cache out of order.</li>
+      <li>Solution: Use versioning, locking, or atomic operations.</li>
+    </ul>
+    <p><strong>4. Thundering Herd / Cache Stampede:</strong></p>
+    <ul>
+      <li>Cause: Multiple concurrent cache misses cause a burst to the DB.</li>
+      <li>Solution: Use request coalescing, locking, or lazy loading with TTL jitter.</li>
+    </ul>
+    <p><strong>5. Cache Eviction and TTL Issues:</strong></p>
+    <ul>
+      <li>Cause: TTL too short → frequent cache misses; too long → stale data.</li>
+      <li>Solution: Tune TTL based on freshness vs. performance needs.</li>
+    </ul>
+    <p><strong>6. High Latency from Synchronous Writes:</strong></p>
+    <ul>
+      <li>Seen in write-through if DB is slow.</li>
+      <li>Solution: Consider async queues or buffering writes.</li>
+    </ul>
+    <p><strong>7. Inadequate Monitoring and Metrics:</strong></p>
+    <ul>
+      <li>Pitfall: Not measuring hit ratio, cache latency, or write failures.</li>
+      <li>Solution: Log metrics per cache layer and add alerting.</li>
     </ul>
   </div>
 
